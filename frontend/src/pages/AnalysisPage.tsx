@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { startGame } from '../api/client';
-import type { Entity, StoryRepresentation } from '../types';
+import type { DataType, Entity, EntityType, StateVariable, StoryRepresentation } from '../types';
 
 const TYPE_COLORS: Record<string, string> = {
   world: 'bg-violet-800 text-violet-200',
@@ -11,47 +11,158 @@ const TYPE_COLORS: Record<string, string> = {
   faction: 'bg-rose-800 text-rose-200',
 };
 
-function EntityCard({ entity }: { entity: Entity }) {
+const ENTITY_TYPES: EntityType[] = ['world', 'character', 'object', 'location', 'faction'];
+const DATA_TYPES: DataType[] = ['integer', 'float', 'boolean', 'string', 'enum'];
+
+function EntityCard({
+  entity,
+  onChange,
+  onRemove,
+}: {
+  entity: Entity;
+  onChange: (updated: Entity) => void;
+  onRemove: () => void;
+}) {
   const [open, setOpen] = useState(entity.type === 'character' || entity.type === 'world');
+
+  const set = <K extends keyof Entity>(field: K, value: Entity[K]) =>
+    onChange({ ...entity, [field]: value });
+
+  const setVar = (i: number, field: keyof StateVariable, value: StateVariable[keyof StateVariable]) =>
+    onChange({
+      ...entity,
+      state_variables: entity.state_variables.map((v, idx) =>
+        idx === i ? { ...v, [field]: value } : v,
+      ),
+    });
+
+  const addVar = () =>
+    onChange({
+      ...entity,
+      state_variables: [
+        ...entity.state_variables,
+        { name: '', description: '', data_type: 'string' as DataType, range: '', initial_value: '' },
+      ],
+    });
+
+  const removeVar = (i: number) =>
+    onChange({
+      ...entity,
+      state_variables: entity.state_variables.filter((_, idx) => idx !== i),
+    });
+
   return (
     <div className="bg-slate-900 border border-slate-700 rounded-lg overflow-hidden">
-      <button
-        className="w-full flex items-center justify-between px-4 py-3 hover:bg-slate-800 transition-colors text-left"
-        onClick={() => setOpen((o) => !o)}
-      >
-        <div className="flex items-center gap-2">
-          <span className={`text-xs px-2 py-0.5 rounded font-medium ${TYPE_COLORS[entity.type] || 'bg-slate-700 text-slate-300'}`}>
-            {entity.type}
-          </span>
-          <span className="text-slate-100 font-medium">{entity.name}</span>
-        </div>
-        <span className="text-slate-500 text-xs">{open ? '▲' : '▼'}</span>
-      </button>
+      {/* Card header */}
+      <div className="flex items-center gap-2 px-3 py-2 bg-slate-800/50">
+        <button
+          onClick={() => setOpen((o) => !o)}
+          className="text-slate-500 hover:text-slate-300 text-xs w-4 shrink-0 transition-colors"
+        >
+          {open ? '▲' : '▼'}
+        </button>
+        <select
+          value={entity.type}
+          onChange={(e) => set('type', e.target.value as EntityType)}
+          className={`text-xs px-2 py-0.5 rounded font-medium cursor-pointer border-0 focus:outline-none ${TYPE_COLORS[entity.type] || 'bg-slate-700 text-slate-300'}`}
+        >
+          {ENTITY_TYPES.map((t) => (
+            <option key={t} value={t}>{t}</option>
+          ))}
+        </select>
+        <input
+          value={entity.name}
+          onChange={(e) => set('name', e.target.value)}
+          className="flex-1 min-w-0 bg-transparent text-slate-100 font-medium text-sm focus:outline-none focus:bg-slate-700 rounded px-1 -mx-1"
+          placeholder="Entity name…"
+        />
+        <button
+          onClick={onRemove}
+          className="text-slate-600 hover:text-red-400 text-xs transition-colors shrink-0 ml-1"
+          title="Remove entity"
+        >
+          ✕
+        </button>
+      </div>
+
       {open && (
-        <div className="px-4 pb-4 text-sm">
-          <p className="text-slate-400 leading-relaxed mb-3">{entity.description}</p>
-          {entity.state_variables.length > 0 && (
-            <>
-              <p className="text-slate-500 text-xs uppercase tracking-widest mb-2">State Variables</p>
-              <div className="space-y-2">
-                {entity.state_variables.map((v) => (
-                  <div key={v.name} className="flex items-start gap-3 bg-slate-800 rounded px-3 py-2">
-                    <div className="min-w-0 flex-1">
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className="text-amber-300 font-medium">{v.name}</span>
-                        <span className="text-slate-600 text-xs">{v.data_type}</span>
-                        <span className="text-emerald-500 text-xs font-medium">
-                          = {String(v.initial_value)}
-                        </span>
-                      </div>
-                      <p className="text-slate-500 text-xs mt-0.5">{v.description}</p>
-                      <p className="text-slate-600 text-xs italic">Range: {v.range}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </>
+        <div className="px-3 pb-3 pt-2 space-y-2">
+          {/* Description */}
+          <textarea
+            value={entity.description}
+            onChange={(e) => set('description', e.target.value)}
+            rows={2}
+            className="w-full bg-slate-800 border border-slate-700 rounded px-3 py-2 text-sm text-slate-300 focus:outline-none focus:border-slate-500 resize-none"
+            placeholder="Entity description…"
+          />
+
+          {/* State variables */}
+          <div className="flex items-center justify-between">
+            <p className="text-slate-500 text-xs uppercase tracking-widest">State Variables</p>
+            <button
+              onClick={addVar}
+              className="text-xs text-amber-500 hover:text-amber-400 transition-colors"
+            >
+              + Add variable
+            </button>
+          </div>
+
+          {entity.state_variables.length === 0 && (
+            <p className="text-slate-600 text-xs italic">No state variables.</p>
           )}
+
+          <div className="space-y-2">
+            {entity.state_variables.map((v, i) => (
+              <div key={i} className="bg-slate-800 rounded px-3 py-2 space-y-1.5">
+                {/* Row 1: name · type · = · initial_value · remove */}
+                <div className="flex items-center gap-2 flex-wrap">
+                  <input
+                    value={v.name}
+                    onChange={(e) => setVar(i, 'name', e.target.value)}
+                    className="flex-1 min-w-0 bg-slate-700 rounded px-2 py-0.5 text-sm text-amber-300 font-medium focus:outline-none focus:ring-1 focus:ring-amber-500"
+                    placeholder="variable_name"
+                  />
+                  <select
+                    value={v.data_type}
+                    onChange={(e) => setVar(i, 'data_type', e.target.value as DataType)}
+                    className="bg-slate-700 text-slate-400 text-xs rounded px-1.5 py-0.5 focus:outline-none"
+                  >
+                    {DATA_TYPES.map((t) => (
+                      <option key={t} value={t}>{t}</option>
+                    ))}
+                  </select>
+                  <span className="text-slate-600 text-xs">=</span>
+                  <input
+                    value={String(v.initial_value)}
+                    onChange={(e) => setVar(i, 'initial_value', e.target.value)}
+                    className="w-24 bg-slate-700 rounded px-2 py-0.5 text-sm text-emerald-400 focus:outline-none focus:ring-1 focus:ring-emerald-500"
+                    placeholder="initial"
+                  />
+                  <button
+                    onClick={() => removeVar(i)}
+                    className="text-slate-600 hover:text-red-400 text-xs transition-colors"
+                    title="Remove variable"
+                  >
+                    ✕
+                  </button>
+                </div>
+                {/* Row 2: description */}
+                <input
+                  value={v.description}
+                  onChange={(e) => setVar(i, 'description', e.target.value)}
+                  className="w-full bg-slate-700 rounded px-2 py-0.5 text-xs text-slate-400 focus:outline-none"
+                  placeholder="Description…"
+                />
+                {/* Row 3: range */}
+                <input
+                  value={v.range}
+                  onChange={(e) => setVar(i, 'range', e.target.value)}
+                  className="w-full bg-slate-700 rounded px-2 py-0.5 text-xs text-slate-500 italic focus:outline-none"
+                  placeholder="Range / possible values…"
+                />
+              </div>
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -61,9 +172,10 @@ function EntityCard({ entity }: { entity: Entity }) {
 export default function AnalysisPage() {
   const location = useLocation();
   const navigate = useNavigate();
-  const [story, setStory] = useState<StoryRepresentation>(
+  const [story] = useState<StoryRepresentation>(
     location.state?.story as StoryRepresentation,
   );
+  const [entities, setEntities] = useState<Entity[]>(story?.entities ?? []);
   const [rules, setRules] = useState<string[]>(story?.rules ?? []);
   const [selectedCharId, setSelectedCharId] = useState<string>('');
   const [goal, setGoal] = useState('');
@@ -76,14 +188,38 @@ export default function AnalysisPage() {
     return null;
   }
 
-  const characters = story.entities.filter((e) => e.type === 'character');
+  const characters = entities.filter((e) => e.type === 'character');
 
-  const updateRule = (i: number, val: string) => {
-    setRules((prev) => prev.map((r, idx) => (idx === i ? val : r)));
+  // ── Entity handlers ──────────────────────────────────────────────────────────
+
+  const updateEntity = (i: number, updated: Entity) =>
+    setEntities((prev) => prev.map((e, idx) => (idx === i ? updated : e)));
+
+  const removeEntity = (i: number) => {
+    if (entities[i].id === selectedCharId) setSelectedCharId('');
+    setEntities((prev) => prev.filter((_, idx) => idx !== i));
   };
 
+  const addEntity = () =>
+    setEntities((prev) => [
+      ...prev,
+      {
+        id: `entity_${Date.now()}`,
+        type: 'character' as EntityType,
+        name: 'New Entity',
+        description: '',
+        state_variables: [],
+      },
+    ]);
+
+  // ── Rule handlers ────────────────────────────────────────────────────────────
+
+  const updateRule = (i: number, val: string) =>
+    setRules((prev) => prev.map((r, idx) => (idx === i ? val : r)));
   const addRule = () => setRules((prev) => [...prev, '']);
   const removeRule = (i: number) => setRules((prev) => prev.filter((_, idx) => idx !== i));
+
+  // ── Failure handlers ─────────────────────────────────────────────────────────
 
   const addFailure = () => setFailureInputs((prev) => [...prev, '']);
   const updateFailure = (i: number, val: string) =>
@@ -91,11 +227,13 @@ export default function AnalysisPage() {
   const removeFailure = (i: number) =>
     setFailureInputs((prev) => prev.filter((_, idx) => idx !== i));
 
+  // ── Start game ───────────────────────────────────────────────────────────────
+
   const onStartGame = async () => {
     if (!selectedCharId) return;
     setLoading(true);
     setError(null);
-    const updatedStory = { ...story, rules };
+    const updatedStory = { ...story, rules, entities };
     const failures = failureInputs.filter((f) => f.trim() !== '');
     try {
       const resp = await startGame(
@@ -189,12 +327,25 @@ export default function AnalysisPage() {
         <div className="space-y-6">
           {/* Entities */}
           <section>
-            <h2 className="text-slate-400 text-xs uppercase tracking-widest mb-2">
-              Entities ({story.entities.length})
-            </h2>
-            <div className="space-y-2 max-h-96 overflow-y-auto pr-1">
-              {story.entities.map((e) => (
-                <EntityCard key={e.id} entity={e} />
+            <div className="flex items-center justify-between mb-2">
+              <h2 className="text-slate-400 text-xs uppercase tracking-widest">
+                Entities ({entities.length})
+              </h2>
+              <button
+                onClick={addEntity}
+                className="text-xs text-amber-500 hover:text-amber-400 transition-colors"
+              >
+                + Add entity
+              </button>
+            </div>
+            <div className="space-y-2 max-h-[32rem] overflow-y-auto pr-1">
+              {entities.map((e, i) => (
+                <EntityCard
+                  key={e.id}
+                  entity={e}
+                  onChange={(updated) => updateEntity(i, updated)}
+                  onRemove={() => removeEntity(i)}
+                />
               ))}
             </div>
           </section>
