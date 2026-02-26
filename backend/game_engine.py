@@ -83,7 +83,7 @@ def _format_entity_states(story: StoryRepresentation, states: Dict[str, Dict[str
     lines = []
     for entity in story.entities:
         state = states.get(entity.id, {})
-        lines.append(f"### {entity.name} ({entity.type})")
+        lines.append(f"### {entity.name} (id: {entity.id}, type: {entity.type})")
         if not entity.state_variables:
             lines.append("  (no tracked state variables)")
         for var in entity.state_variables:
@@ -308,7 +308,7 @@ def process_action(session_id: str, player_action: str) -> GameActionResponse:
     character_description = player_entity.description if player_entity else ""
 
     entity_descriptions = "\n\n".join(
-        f"**{e.name}** ({e.type}): {e.description}" for e in story.entities
+        f"**{e.name}** (id: `{e.id}`, type: {e.type}): {e.description}" for e in story.entities
     )
     formatted_states = _format_entity_states(story, session.entity_states)
     rules_text = "\n".join(f"- {r}" for r in story.rules)
@@ -340,8 +340,12 @@ def process_action(session_id: str, player_action: str) -> GameActionResponse:
 
     # Parse state changes
     state_changes: List[StateChange] = []
+    name_to_id = {e.name: e.id for e in story.entities}
     for sc in data.get("state_changes", []):
         entity_id = sc.get("entity_id", "")
+        # LLM may use the entity name instead of its id — resolve it
+        if entity_id not in session.entity_states and entity_id in name_to_id:
+            entity_id = name_to_id[entity_id]
         var_name = sc.get("variable_name", "")
         old_val = session.entity_states.get(entity_id, {}).get(var_name)
         new_val = sc.get("new_value")
