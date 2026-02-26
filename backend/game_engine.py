@@ -191,7 +191,7 @@ Respond with ONLY valid JSON (no markdown fences):
       "variable_name": "...",
       "old_value": <current value>,
       "new_value": <updated value>,
-      "reason": "Brief explanation"
+      "reason": "Brief explanation (one short sentence)"
     }}
   ],
   "story_continuation": "2-3 paragraphs...",
@@ -335,7 +335,7 @@ def process_action(session_id: str, player_action: str) -> GameActionResponse:
         failure_conditions=failure_text,
     )
 
-    raw = _call(client, prompt, max_tokens=3000)
+    raw = _call(client, prompt, max_tokens=4096)
     data = _extract_json(raw)
 
     # Parse state changes
