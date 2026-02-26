@@ -8,6 +8,7 @@ const ACCEPT = '.pdf,.txt,.md';
 export default function UploadPage() {
   const navigate = useNavigate();
   const inputRef = useRef<HTMLInputElement>(null);
+  const importRef = useRef<HTMLInputElement>(null);
   const [file, setFile] = useState<File | null>(null);
   const [numRules, setNumRules] = useState(7);
   const [loading, setLoading] = useState(false);
@@ -25,6 +26,26 @@ export default function UploadPage() {
     const f = e.dataTransfer.files[0];
     if (f) handleFile(f);
   }, []);
+
+  const onImportJson = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
+    e.target.value = '';
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const story = JSON.parse(ev.target?.result as string) as StoryRepresentation;
+        if (!story.title || !Array.isArray(story.entities) || !Array.isArray(story.rules)) {
+          setError('Invalid story JSON: missing title, entities, or rules.');
+          return;
+        }
+        navigate('/analysis', { state: { story } });
+      } catch {
+        setError('Could not parse JSON file.');
+      }
+    };
+    reader.readAsText(f);
+  };
 
   const onAnalyze = async () => {
     if (!file) return;
@@ -147,6 +168,26 @@ export default function UploadPage() {
           ) : (
             'Extract & Analyze →'
           )}
+        </button>
+
+        <div className="mt-4 flex items-center gap-3">
+          <div className="flex-1 h-px bg-slate-800" />
+          <span className="text-slate-600 text-xs">or</span>
+          <div className="flex-1 h-px bg-slate-800" />
+        </div>
+
+        <input
+          ref={importRef}
+          type="file"
+          accept=".json"
+          className="hidden"
+          onChange={onImportJson}
+        />
+        <button
+          onClick={() => importRef.current?.click()}
+          className="mt-3 w-full py-2.5 rounded-lg text-sm transition-all border border-slate-700 hover:border-slate-500 text-slate-400 hover:text-slate-200 bg-transparent"
+        >
+          Import saved story JSON
         </button>
 
         <p className="mt-4 text-center text-slate-600 text-xs">

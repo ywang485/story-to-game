@@ -190,6 +190,17 @@ export default function AnalysisPage() {
 
   const characters = entities.filter((e) => e.type === 'character');
 
+  const exportStory = () => {
+    const data = JSON.stringify({ ...story, rules, entities }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${story.title.replace(/[^a-z0-9]/gi, '_').toLowerCase()}.story.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
   // ── Entity handlers ──────────────────────────────────────────────────────────
 
   const updateEntity = (i: number, updated: Entity) =>
@@ -269,7 +280,13 @@ export default function AnalysisPage() {
           ← Back
         </button>
         <h1 className="text-amber-400 font-semibold text-lg">{story.title}</h1>
-        <div className="w-16" />
+        <button
+          onClick={exportStory}
+          className="text-xs text-slate-500 hover:text-slate-300 transition-colors"
+          title="Export story representation as JSON"
+        >
+          ↓ Export JSON
+        </button>
       </header>
 
       <div className="flex-1 max-w-6xl mx-auto w-full px-4 py-8 grid grid-cols-1 lg:grid-cols-2 gap-8">
