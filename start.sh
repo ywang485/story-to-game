@@ -54,7 +54,20 @@ npm run dev &
 FRONTEND_PID=$!
 
 # ── Cleanup on exit ───────────────────────────────────────────────────────────
-trap "info 'Shutting down…'; kill $BACKEND_PID $FRONTEND_PID 2>/dev/null; exit 0" INT TERM
+cleanup() {
+  info 'Shutting down…'
+  # uvicorn --reload spawns a worker child under the reloader parent.
+  # Kill children first so the reloader doesn't hang waiting for them.
+  pkill -P "$BACKEND_PID"  2>/dev/null || true
+  pkill -P "$FRONTEND_PID" 2>/dev/null || true
+  # Now kill the parent processes gracefully.
+  kill "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
+  # Give them a moment; force-kill anything still alive.
+  sleep 0.8
+  kill -9 "$BACKEND_PID" "$FRONTEND_PID" 2>/dev/null || true
+  exit 0
+}
+trap cleanup INT TERM
 
 info ""
 info "  Backend:  http://localhost:8000"
