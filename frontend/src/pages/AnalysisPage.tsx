@@ -178,8 +178,10 @@ export default function AnalysisPage() {
   const [entities, setEntities] = useState<Entity[]>(story?.entities ?? []);
   const [rules, setRules] = useState<string[]>(story?.rules ?? []);
   const [selectedCharId, setSelectedCharId] = useState<string>('');
-  const [goal, setGoal] = useState('');
-  const [failureInputs, setFailureInputs] = useState<string[]>(['']);
+  const [goal, setGoal] = useState(story?.goal ?? '');
+  const [failureInputs, setFailureInputs] = useState<string[]>(
+    story?.failure_conditions?.length ? story.failure_conditions : [''],
+  );
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -191,7 +193,14 @@ export default function AnalysisPage() {
   const characters = entities.filter((e) => e.type === 'character');
 
   const exportStory = () => {
-    const data = JSON.stringify({ ...story, rules, entities }, null, 2);
+    const failures = failureInputs.filter((f) => f.trim() !== '');
+    const data = JSON.stringify({
+      ...story,
+      rules,
+      entities,
+      goal: goal.trim() || undefined,
+      failure_conditions: failures.length ? failures : undefined,
+    }, null, 2);
     const blob = new Blob([data], { type: 'application/json' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');

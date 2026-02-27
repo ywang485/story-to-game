@@ -24,6 +24,8 @@ export interface StoryRepresentation {
   entities: Entity[];
   rules: string[];
   num_rules: number;
+  goal?: string;
+  failure_conditions?: string[];
 }
 
 export interface StateChange {
